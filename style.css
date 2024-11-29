@@ -3,12 +3,37 @@ header {
     background-color: #f8f9fa;
     padding: 50px 0;
 }
+
 header h1 {
     font-size: 2.5rem;
 }
+
 footer {
     background-color: #343a40;
     color: white;
     padding: 20px 0;
     text-align: center;
+}
+
+/* Agregar estilo a los productos */
+.card img {
+    max-height: 200px;
+    object-fit: cover;
+}
+
+.card-body {
+    text-align: center;
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+}
+
+.card-text {
+    color: #555;
+}
+
+button {
+    margin-top: 10px;
 }
