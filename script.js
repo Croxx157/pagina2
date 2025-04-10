@@ -1,47 +1,67 @@
-const btn = document.getElementById("hablarBtn");
-const textoUsuario = document.getElementById("textoUsuario");
-const respuestaGPT = document.getElementById("respuestaGPT");
+let mediaRecorder;
+let audioChunks = [];
 
-const reconocimiento = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-reconocimiento.lang = "es-ES";
-reconocimiento.interimResults = false;
+// Pedir acceso al micrófono
+navigator.mediaDevices.getUserMedia({ audio: true })
+  .then(stream => {
+    document.getElementById("status").innerText = "Micrófono listo 🎧";
+    document.getElementById("startRecord").disabled = false;
 
-btn.addEventListener("click", () => {
-  reconocimiento.start();
+    mediaRecorder = new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = event => {
+      audioChunks.push(event.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      audioChunks = [];
+      document.getElementById("sendAudio").disabled = false;
+      // Guardar en variable global
+      window.audioParaEnviar = audioBlob;
+    };
+  })
+  .catch(err => {
+    document.getElementById("status").innerText = "❌ No se pudo acceder al micrófono.";
+    console.error(err);
+  });
+
+// Iniciar grabación
+document.getElementById("startRecord").addEventListener("click", () => {
+  if (mediaRecorder && mediaRecorder.state === "inactive") {
+    audioChunks = [];
+    mediaRecorder.start();
+    document.getElementById("status").innerText = "🎙️ Grabando...";
+
+    setTimeout(() => {
+      mediaRecorder.stop();
+      document.getElementById("status").innerText = "✅ Grabación lista";
+    }, 4000); // 4 segundos
+  }
 });
 
-reconocimiento.onresult = async (event) => {
-  const texto = event.results[0][0].transcript;
-  textoUsuario.textContent = "Tú: " + texto;
+// Enviar grabación
+document.getElementById("sendAudio").addEventListener("click", () => {
+  if (!window.audioParaEnviar) return;
 
-  const respuesta = await obtenerRespuestaDeGPT(texto);
-  respuestaGPT.textContent = "GPT: " + respuesta;
+  const formData = new FormData();
+  formData.append("audio", window.audioParaEnviar, "grabacion.webm");
 
-  const utterance = new SpeechSynthesisUtterance(respuesta);
-  utterance.lang = "es-ES";
-  speechSynthesis.speak(utterance);
-};
-
-async function obtenerRespuestaDeGPT(pregunta) {
-  // Simulación local (puedes reemplazar por tu API real)
-  return `Dijiste: "${pregunta}". Esta es una respuesta simulada.`;
-  
-  // Para usar con la API real:
-  /*
-  const apiKey = "TU_API_KEY_AQUI";
-  const respuesta = await fetch("https://api.openai.com/v1/chat/completions", {
+  fetch("/api/audio", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: pregunta }],
-    })
+    body: formData
+  })
+  .then(response => {
+    if (response.ok) {
+      document.getElementById("status").innerText = "✅ Audio enviado correctamente";
+      document.getElementById("sendAudio").disabled = true;
+    } else {
+      document.getElementById("status").innerText = "❌ Error al enviar el audio";
+    }
+  })
+  .catch(error => {
+    console.error("Error al enviar el audio:", error);
+    document.getElementById("status").innerText = "❌ Error de conexión";
   });
-  const data = await respuesta.json();
-  return data.choices[0].message.content.trim();
-  */
-}
+});
 
