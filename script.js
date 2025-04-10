@@ -1,12 +1,10 @@
 let mediaRecorder;
 let audioChunks = [];
 
-// Pedir acceso al micrófono
 navigator.mediaDevices.getUserMedia({ audio: true })
   .then(stream => {
     document.getElementById("status").innerText = "Micrófono listo 🎧";
     document.getElementById("startRecord").disabled = false;
-
     mediaRecorder = new MediaRecorder(stream);
 
     mediaRecorder.ondataavailable = event => {
@@ -15,18 +13,14 @@ navigator.mediaDevices.getUserMedia({ audio: true })
 
     mediaRecorder.onstop = () => {
       const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-      audioChunks = [];
-      document.getElementById("sendAudio").disabled = false;
-      // Guardar en variable global
       window.audioParaEnviar = audioBlob;
+      document.getElementById("sendAudio").disabled = false;
     };
   })
-  .catch(err => {
+  .catch(() => {
     document.getElementById("status").innerText = "❌ No se pudo acceder al micrófono.";
-    console.error(err);
   });
 
-// Iniciar grabación
 document.getElementById("startRecord").addEventListener("click", () => {
   if (mediaRecorder && mediaRecorder.state === "inactive") {
     audioChunks = [];
@@ -36,32 +30,26 @@ document.getElementById("startRecord").addEventListener("click", () => {
     setTimeout(() => {
       mediaRecorder.stop();
       document.getElementById("status").innerText = "✅ Grabación lista";
-    }, 4000); // 4 segundos
+    }, 4000);
   }
 });
 
-// Enviar grabación
 document.getElementById("sendAudio").addEventListener("click", () => {
   if (!window.audioParaEnviar) return;
 
   const formData = new FormData();
   formData.append("audio", window.audioParaEnviar, "grabacion.webm");
 
-  fetch("/api/audio", {
+  fetch("http://localhost:5000/api/audio", {
     method: "POST",
     body: formData
   })
-  .then(response => {
-    if (response.ok) {
-      document.getElementById("status").innerText = "✅ Audio enviado correctamente";
-      document.getElementById("sendAudio").disabled = true;
-    } else {
-      document.getElementById("status").innerText = "❌ Error al enviar el audio";
-    }
+  .then(res => res.json())
+  .then(data => {
+    document.getElementById("respuesta").innerText = "🧠 Cortana: " + data.respuesta;
   })
-  .catch(error => {
-    console.error("Error al enviar el audio:", error);
-    document.getElementById("status").innerText = "❌ Error de conexión";
+  .catch(() => {
+    document.getElementById("respuesta").innerText = "❌ Error al enviar el audio";
   });
 });
 
